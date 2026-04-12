@@ -34,10 +34,10 @@ public final class JDBCUtils {
             properties.load(inputStream);
 
             HikariConfig config = new HikariConfig();
-            config.setJdbcUrl(properties.getProperty("db.url"));
-            config.setUsername(properties.getProperty("db.username"));
-            config.setPassword(properties.getProperty("db.password"));
-            config.setDriverClassName(properties.getProperty("db.driver", "com.mysql.cj.jdbc.Driver"));
+            config.setJdbcUrl(firstNonBlank(System.getenv("DB_URL"), properties.getProperty("db.url")));
+            config.setUsername(firstNonBlank(System.getenv("DB_USERNAME"), properties.getProperty("db.username")));
+            config.setPassword(firstNonBlank(System.getenv("DB_PASSWORD"), properties.getProperty("db.password")));
+            config.setDriverClassName(firstNonBlank(System.getenv("DB_DRIVER"), properties.getProperty("db.driver", "com.mysql.cj.jdbc.Driver")));
 
             config.setPoolName(properties.getProperty("hikari.poolName", "CodeQuestHikariPool"));
             config.setMinimumIdle(Integer.parseInt(properties.getProperty("hikari.minimumIdle", "5")));
@@ -68,5 +68,13 @@ public final class JDBCUtils {
 
     public static boolean isInitialized() {
         return DATA_SOURCE != null && !DATA_SOURCE.isClosed();
+    }
+
+    private static String firstNonBlank(String primary, String fallback) {
+        String primaryValue = primary == null ? "" : primary.trim();
+        if (!primaryValue.isEmpty()) {
+            return primaryValue;
+        }
+        return fallback == null ? "" : fallback.trim();
     }
 }

@@ -96,6 +96,22 @@ mvn clean package -DskipTests
 docker compose up -d
 ```
 
+### 2.1 配置 DeepSeek Key（推荐环境变量）
+
+PowerShell：
+```powershell
+$env:DEEPSEEK_API_KEY="your_deepseek_api_key"
+```
+
+或创建 `.env` 文件（已被 `.gitignore` 忽略）：
+```env
+DEEPSEEK_API_KEY=your_deepseek_api_key
+DEEPSEEK_API_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-reasoner
+```
+
+可直接参考仓库中的 `.env.example` 复制为 `.env` 后填写。
+
 ### 3. 检查状态
 ```bash
 docker compose ps
@@ -103,7 +119,7 @@ docker compose logs -f app
 ```
 
 ### 4. 访问地址
-- 应用主页: http://localhost:8080
+- 应用主页: http://localhost:8081
 - MySQL: `localhost:3306`
 - Redis: `localhost:6379`
 
@@ -198,6 +214,7 @@ docker compose up -d
 
 - 请勿将真实 API Key 明文提交到仓库；建议使用环境变量或 Secret 管理。
 - 生产环境请替换默认账号密码，并限制数据库端口暴露范围。
+- 当前程序支持通过 `DEEPSEEK_API_KEY`、`DB_PASSWORD` 等环境变量覆盖本地配置。
 
 ---
 

@@ -59,9 +59,16 @@ public final class AIService {
             // 配置加载失败时保留默认参数并走兜底策略。
         }
         String configuredUrl = properties.getProperty("deepseek.api.url", DEFAULT_API_BASE_URL).trim();
-        DEEPSEEK_API_URL = normalizeApiUrl(configuredUrl);
-        DEEPSEEK_API_KEY = properties.getProperty("deepseek.api.key", "").trim();
-        DEEPSEEK_MODEL = properties.getProperty("deepseek.model", DEFAULT_MODEL).trim();
+        String configuredKey = properties.getProperty("deepseek.api.key", "").trim();
+        String configuredModel = properties.getProperty("deepseek.model", DEFAULT_MODEL).trim();
+
+        String envUrl = safeTrim(System.getenv("DEEPSEEK_API_URL"));
+        String envKey = safeTrim(System.getenv("DEEPSEEK_API_KEY"));
+        String envModel = safeTrim(System.getenv("DEEPSEEK_MODEL"));
+
+        DEEPSEEK_API_URL = normalizeApiUrl(firstNonBlank(envUrl, configuredUrl, DEFAULT_API_BASE_URL));
+        DEEPSEEK_API_KEY = firstNonBlank(envKey, configuredKey, "");
+        DEEPSEEK_MODEL = firstNonBlank(envModel, configuredModel, DEFAULT_MODEL);
     }
 
     private AIService() {
@@ -550,6 +557,23 @@ public final class AIService {
 
     private static String safe(String value) {
         return value == null ? "" : value;
+    }
+
+    private static String safeTrim(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) {
+            return "";
+        }
+        for (String value : values) {
+            String candidate = safeTrim(value);
+            if (!candidate.isEmpty()) {
+                return candidate;
+            }
+        }
+        return "";
     }
 
     private static String readAll(InputStream inputStream) throws IOException {

@@ -16,6 +16,7 @@ Thumbs.db
 # Env / local overrides
 .env
 .env.*
+!.env.example
 
 # Uploads/runtime data
 uploads/

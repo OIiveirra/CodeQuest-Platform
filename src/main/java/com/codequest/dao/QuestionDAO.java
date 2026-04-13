@@ -138,7 +138,22 @@ public class QuestionDAO extends BaseDAO {
             ps.executeBatch();
         }
 
+        // Sync newly inserted questions to sys_question
+        syncNewQuestionsToSysQuestion();
+
         return affected;
+    }
+
+    private void syncNewQuestionsToSysQuestion() throws SQLException {
+        // Copy questions from t_question that are not yet in sys_question
+        String syncSql = "INSERT IGNORE INTO sys_question (id, title, content, type, difficulty, tags, standard_answer, created_at, updated_at) "
+                + "SELECT id, title, content, type, difficulty, tags, standard_answer, created_at, updated_at FROM t_question "
+                + "WHERE id NOT IN (SELECT id FROM sys_question)";
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(syncSql)) {
+            ps.executeUpdate();
+        }
     }
 
     public void addQuestion(Question question) throws SQLException {

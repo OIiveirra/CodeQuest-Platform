@@ -29,21 +29,21 @@
 
 ### 主责任文件
 
-- src/main/java/com/codequest/util/AIService.java
-- src/main/java/com/codequest/util/JDBCUtils.java
-- src/main/java/com/codequest/listener/AppStartupListener.java
-- src/main/java/com/codequest/filter/GlobalExceptionFilter.java
-- src/main/java/com/codequest/filter/CharacterEncodingFilter.java
-- src/main/java/com/codequest/filter/LoggingFilter.java
-- src/main/java/com/codequest/filter/XssFilter.java
-- src/main/java/com/codequest/dao/BaseDAO.java
+- platform/src/main/java/com/codequest/util/AIService.java
+- platform/src/main/java/com/codequest/util/JDBCUtils.java
+- platform/src/main/java/com/codequest/listener/AppStartupListener.java
+- platform/src/main/java/com/codequest/filter/GlobalExceptionFilter.java
+- platform/src/main/java/com/codequest/filter/CharacterEncodingFilter.java
+- platform/src/main/java/com/codequest/filter/LoggingFilter.java
+- platform/src/main/java/com/codequest/filter/XssFilter.java
+- platform/src/main/java/com/codequest/dao/BaseDAO.java
 - docker-compose.yml
-- scripts/recover_codequest_db.sql
-- src/main/java/com/codequest/servlet/SubmitAnswerStreamServlet.java
-- src/main/java/com/codequest/servlet/InterviewSessionServlet.java
-- src/main/java/com/codequest/servlet/AnswerDraftServlet.java
-- src/main/java/com/codequest/dao/AnswerDraftDAO.java
-- src/main/java/com/codequest/servlet/ExportServlet.java
+- platform/scripts/recover_codequest_db.sql
+- platform/src/main/java/com/codequest/servlet/SubmitAnswerStreamServlet.java
+- platform/src/main/java/com/codequest/servlet/InterviewSessionServlet.java
+- platform/src/main/java/com/codequest/servlet/AnswerDraftServlet.java
+- platform/src/main/java/com/codequest/dao/AnswerDraftDAO.java
+- platform/src/main/java/com/codequest/servlet/ExportServlet.java
 
 ## 张芷宁
 
@@ -54,16 +54,16 @@
 
 ### 主责任文件
 
-- src/main/java/com/codequest/servlet/UserProfileServlet.java
-- src/main/java/com/codequest/servlet/AvatarUploadServlet.java
-- src/main/java/com/codequest/servlet/AvatarImageServlet.java
-- src/main/java/com/codequest/servlet/LoginServlet.java
-- src/main/java/com/codequest/servlet/RegisterServlet.java
-- src/main/java/com/codequest/servlet/LogoutServlet.java
-- src/main/java/com/codequest/service/UserService.java
-- src/main/java/com/codequest/dao/UserDAO.java
-- src/main/webapp/WEB-INF/jsp/profile.jsp
-- src/main/webapp/avatar_upload.jsp
+- platform/src/main/java/com/codequest/servlet/UserProfileServlet.java
+- platform/src/main/java/com/codequest/servlet/AvatarUploadServlet.java
+- platform/src/main/java/com/codequest/servlet/AvatarImageServlet.java
+- platform/src/main/java/com/codequest/servlet/LoginServlet.java
+- platform/src/main/java/com/codequest/servlet/RegisterServlet.java
+- platform/src/main/java/com/codequest/servlet/LogoutServlet.java
+- platform/src/main/java/com/codequest/service/UserService.java
+- platform/src/main/java/com/codequest/dao/UserDAO.java
+- platform/src/main/webapp/WEB-INF/jsp/profile.jsp
+- platform/src/main/webapp/avatar_upload.jsp
 
 ## 韩博文
 
@@ -74,11 +74,11 @@
 
 ### 主责任文件
 
-- src/main/java/com/codequest/dao/QuestionDAO.java
-- src/main/java/com/codequest/servlet/QuestionListServlet.java
-- src/main/java/com/codequest/servlet/ExportCsvServlet.java
-- src/main/java/com/codequest/servlet/ExportBankServlet.java
-- src/main/webapp/questions.jsp
+- platform/src/main/java/com/codequest/dao/QuestionDAO.java
+- platform/src/main/java/com/codequest/servlet/QuestionListServlet.java
+- platform/src/main/java/com/codequest/servlet/ExportCsvServlet.java
+- platform/src/main/java/com/codequest/servlet/ExportBankServlet.java
+- platform/src/main/webapp/questions.jsp
 
 ## 靳道童
 
@@ -89,13 +89,13 @@
 
 ### 主责任文件
 
-- src/main/java/com/codequest/dao/EvaluationDAO.java
-- src/main/java/com/codequest/service/EvaluationService.java
-- src/main/java/com/codequest/dao/FavoriteDAO.java
-- src/main/java/com/codequest/servlet/FavoriteServlet.java
-- src/main/java/com/codequest/dao/ReportDAO.java
-- src/main/java/com/codequest/service/ReportService.java
-- src/main/java/com/codequest/servlet/ReportDownloadServlet.java
+- platform/src/main/java/com/codequest/dao/EvaluationDAO.java
+- platform/src/main/java/com/codequest/service/EvaluationService.java
+- platform/src/main/java/com/codequest/dao/FavoriteDAO.java
+- platform/src/main/java/com/codequest/servlet/FavoriteServlet.java
+- platform/src/main/java/com/codequest/dao/ReportDAO.java
+- platform/src/main/java/com/codequest/service/ReportService.java
+- platform/src/main/java/com/codequest/servlet/ReportDownloadServlet.java
 
 ## 李鑫浩
 
@@ -106,10 +106,10 @@
 
 ### 主责任文件
 
-- src/main/webapp/question_detail.jsp
-- src/main/webapp/result.jsp
-- src/main/java/com/codequest/servlet/QuestionDetailServlet.java
-- src/main/java/com/codequest/servlet/SubmitAnswerServlet.java
+- platform/src/main/webapp/question_detail.jsp
+- platform/src/main/webapp/result.jsp
+- platform/src/main/java/com/codequest/servlet/QuestionDetailServlet.java
+- platform/src/main/java/com/codequest/servlet/SubmitAnswerServlet.java
 
 ## 高嵩
 
@@ -120,16 +120,16 @@
 
 ### 主责任文件
 
-- src/main/webapp/admin_questions.jsp
-- src/main/webapp/admin_prompts.jsp
-- src/main/java/com/codequest/servlet/AdminQuestionServlet.java
-- src/main/java/com/codequest/servlet/AdminPromptServlet.java
-- src/main/java/com/codequest/servlet/AdminAiServlet.java
-- src/main/java/com/codequest/dao/AdminQuestionDAO.java
-- src/main/java/com/codequest/dao/PromptDAO.java
-- src/main/java/com/codequest/servlet/SessionDetailServlet.java
-- src/main/java/com/codequest/servlet/WeeklyReportServlet.java
-- src/main/java/com/codequest/servlet/ExportPdfServlet.java
+- platform/src/main/webapp/admin_questions.jsp
+- platform/src/main/webapp/admin_prompts.jsp
+- platform/src/main/java/com/codequest/servlet/AdminQuestionServlet.java
+- platform/src/main/java/com/codequest/servlet/AdminPromptServlet.java
+- platform/src/main/java/com/codequest/servlet/AdminAiServlet.java
+- platform/src/main/java/com/codequest/dao/AdminQuestionDAO.java
+- platform/src/main/java/com/codequest/dao/PromptDAO.java
+- platform/src/main/java/com/codequest/servlet/SessionDetailServlet.java
+- platform/src/main/java/com/codequest/servlet/WeeklyReportServlet.java
+- platform/src/main/java/com/codequest/servlet/ExportPdfServlet.java
 
 ---
 

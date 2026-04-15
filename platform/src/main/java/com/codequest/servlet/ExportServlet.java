@@ -78,7 +78,7 @@ public class ExportServlet extends HttpServlet {
         Part filePart;
         try {
             filePart = req.getPart("file");
-        } catch (Exception ex) {
+        } catch (ServletException | IOException ex) {
             resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "未读取到上传文件。字段名必须为 file。");
             return;
         }
@@ -239,42 +239,57 @@ public class ExportServlet extends HttpServlet {
             String line;
             boolean firstLine = true;
             int lineNo = 0;
+            CsvColumnMapping columnMapping = null;
             while ((line = reader.readLine()) != null) {
                 lineNo++;
                 if (line.trim().isEmpty()) {
                     continue;
                 }
-                if (firstLine) {
-                    firstLine = false;
-                    if (line.contains("标题") || line.toLowerCase().contains("title")) {
-                        continue;
-                    }
-                }
 
                 List<String> cols = splitCsvLine(line);
+                if (firstLine) {
+                    firstLine = false;
+                    if (looksLikeHeader(cols)) {
+                        columnMapping = buildColumnMapping(cols);
+                        continue;
+                    }
+                    columnMapping = CsvColumnMapping.forDataRow(cols.size());
+                }
+
+                if (columnMapping == null) {
+                    columnMapping = CsvColumnMapping.forDataRow(cols.size());
+                }
+
                 if (cols.size() < 2) {
                     errors.add(new ImportError(lineNo, "列数不足，至少包含标题与内容"));
                     continue;
                 }
 
                 Question q = new Question();
-                if (cols.size() >= 1) {
-                    q.setTitle(unquote(cols.get(0)));
+                String title = valueAt(cols, columnMapping.titleIndex);
+                String content = valueAt(cols, columnMapping.contentIndex);
+                String type = valueAt(cols, columnMapping.typeIndex);
+                String difficulty = valueAt(cols, columnMapping.difficultyIndex);
+                String tags = valueAt(cols, columnMapping.tagsIndex);
+                String standardAnswer = valueAt(cols, columnMapping.standardAnswerIndex);
+
+                if (!isBlank(title)) {
+                    q.setTitle(unquote(title));
                 }
-                if (cols.size() >= 2) {
-                    q.setContent(unquote(cols.get(1)));
+                if (!isBlank(content)) {
+                    q.setContent(unquote(content));
                 }
-                if (cols.size() >= 3) {
-                    q.setType(parsePositiveInt(unquote(cols.get(2))));
+                if (!isBlank(type)) {
+                    q.setType(parsePositiveInt(unquote(type)));
                 }
-                if (cols.size() >= 4) {
-                    q.setDifficulty(parsePositiveInt(unquote(cols.get(3))));
+                if (!isBlank(difficulty)) {
+                    q.setDifficulty(parsePositiveInt(unquote(difficulty)));
                 }
-                if (cols.size() >= 5) {
-                    q.setTags(unquote(cols.get(4)));
+                if (!isBlank(tags)) {
+                    q.setTags(unquote(tags));
                 }
-                if (cols.size() >= 6) {
-                    q.setStandardAnswer(unquote(cols.get(5)));
+                if (!isBlank(standardAnswer)) {
+                    q.setStandardAnswer(unquote(standardAnswer));
                 }
 
                 if (!isBlank(q.getTitle()) && !isBlank(q.getContent())) {
@@ -285,6 +300,61 @@ public class ExportServlet extends HttpServlet {
             }
         }
         return new ImportParseResult(list, errors);
+    }
+
+    private boolean looksLikeHeader(List<String> cols) {
+        for (String col : cols) {
+            String normalized = normalizeHeader(col);
+            switch (normalized) {
+                case "title", "content", "standardanswer", "标准答案", "标题" -> {
+                    return true;
+                }
+                default -> {
+                }
+            }
+        }
+        return false;
+    }
+
+    private CsvColumnMapping buildColumnMapping(List<String> headerCols) {
+        CsvColumnMapping mapping = new CsvColumnMapping();
+        for (int i = 0; i < headerCols.size(); i++) {
+            String normalized = normalizeHeader(headerCols.get(i));
+            switch (normalized) {
+                case "title", "标题", "题目标题" -> mapping.titleIndex = i;
+                case "content", "内容", "题目内容" -> mapping.contentIndex = i;
+                case "type", "类型" -> mapping.typeIndex = i;
+                case "difficulty", "难度" -> mapping.difficultyIndex = i;
+                case "tags", "标签" -> mapping.tagsIndex = i;
+                case "standardanswer", "标准答案", "参考答案", "答案" -> mapping.standardAnswerIndex = i;
+                default -> {
+                }
+            }
+        }
+        if (mapping.titleIndex < 0 || mapping.contentIndex < 0) {
+            return CsvColumnMapping.forDataRow(headerCols.size());
+        }
+        return mapping;
+    }
+
+    private String valueAt(List<String> cols, int index) {
+        if (index < 0 || index >= cols.size()) {
+            return "";
+        }
+        return cols.get(index);
+    }
+
+    private String normalizeHeader(String header) {
+        if (header == null) {
+            return "";
+        }
+        String normalized = unquote(header)
+                .replace("\ufeff", "")
+                .replace(" ", "")
+                .replace("_", "")
+                .replace("-", "")
+                .toLowerCase();
+        return normalized;
     }
 
     private List<String> splitCsvLine(String line) {
@@ -336,7 +406,7 @@ public class ExportServlet extends HttpServlet {
         try {
             int parsed = Integer.parseInt(raw.trim());
             return parsed > 0 ? parsed : null;
-        } catch (Exception ex) {
+        } catch (NumberFormatException ex) {
             return null;
         }
     }
@@ -387,6 +457,35 @@ public class ExportServlet extends HttpServlet {
         private ImportError(int line, String message) {
             this.line = line;
             this.message = message;
+        }
+    }
+
+    private static final class CsvColumnMapping {
+        private int titleIndex = -1;
+        private int contentIndex = -1;
+        private int typeIndex = -1;
+        private int difficultyIndex = -1;
+        private int tagsIndex = -1;
+        private int standardAnswerIndex = -1;
+
+        private static CsvColumnMapping forDataRow(int columnCount) {
+            CsvColumnMapping mapping = new CsvColumnMapping();
+            if (columnCount >= 7) {
+                mapping.titleIndex = 1;
+                mapping.contentIndex = 2;
+                mapping.typeIndex = 3;
+                mapping.difficultyIndex = 4;
+                mapping.tagsIndex = 5;
+                mapping.standardAnswerIndex = 6;
+            } else {
+                mapping.titleIndex = 0;
+                mapping.contentIndex = 1;
+                mapping.typeIndex = 2;
+                mapping.difficultyIndex = 3;
+                mapping.tagsIndex = 4;
+                mapping.standardAnswerIndex = 5;
+            }
+            return mapping;
         }
     }
 }

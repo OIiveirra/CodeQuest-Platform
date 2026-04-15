@@ -142,6 +142,9 @@ ON DUPLICATE KEY UPDATE
 DELETE FROM sys_question;
 DELETE FROM t_question;
 
+ALTER TABLE t_question AUTO_INCREMENT = 1;
+ALTER TABLE sys_question AUTO_INCREMENT = 1;
+
 INSERT INTO t_question (title, content, type, difficulty, tags, standard_answer) VALUES
 ('Java 集合：ArrayList 与 LinkedList 对比', '请说明两者底层结构、随机访问复杂度、插入删除复杂度，并给出典型使用场景。', 4, 2, 'Java,集合', 'ArrayList 基于动态数组，随机访问 O(1)，中间插入删除通常 O(n)；LinkedList 基于双向链表，随机访问 O(n)，在已定位节点附近插入删除 O(1)。读多写少优先 ArrayList。'),
 ('MySQL 索引失效场景', '请列举至少 3 种 B+Tree 索引失效写法，并给出改写建议。', 4, 3, '数据库,MySQL', '常见失效：索引列参与函数计算、前导模糊 like "%xx"、违反最左前缀、隐式类型转换。应改写查询条件以命中索引。'),

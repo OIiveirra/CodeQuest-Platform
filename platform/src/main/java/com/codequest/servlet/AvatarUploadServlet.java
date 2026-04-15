@@ -87,7 +87,8 @@ public class AvatarUploadServlet extends HttpServlet {
                 }
             }
 
-            String avatarPath = targetFile.getAbsolutePath();
+            // 存储相对路径，避免容器重建或切换运行模式后绝对路径失效。
+            String avatarPath = AVATAR_DIR_NAME + "/" + targetName;
             new UserDAO().updateAvatar(loginUser.getId(), avatarPath);
 
             // 同步会话中的用户信息，避免页面读取到旧头像地址。
@@ -109,6 +110,11 @@ public class AvatarUploadServlet extends HttpServlet {
     }
 
     private File resolveAvatarDirectory() throws ServletException {
+        File fromWebRoot = findAvatarDirFromWebRoot();
+        if (fromWebRoot != null) {
+            return fromWebRoot;
+        }
+
         // 允许通过 JVM 参数显式指定项目根目录：-Dcodequest.project.root=...
         String configuredRoot = System.getProperty(PROJECT_ROOT_PROPERTY);
         if (configuredRoot != null && !configuredRoot.trim().isEmpty()) {
@@ -128,6 +134,19 @@ public class AvatarUploadServlet extends HttpServlet {
         // 兜底：确保不抛 500，目录落到当前工作目录。
         File userDir = new File(System.getProperty("user.dir", "."));
         return new File(userDir, AVATAR_DIR_NAME);
+    }
+
+    private File findAvatarDirFromWebRoot() {
+        ServletContext context = getServletContext();
+        if (context == null) {
+            return null;
+        }
+
+        String realPath = context.getRealPath("/" + AVATAR_DIR_NAME);
+        if (realPath == null || realPath.trim().isEmpty()) {
+            return null;
+        }
+        return new File(realPath);
     }
 
     private File findProjectRootFromCodeSource() throws ServletException {

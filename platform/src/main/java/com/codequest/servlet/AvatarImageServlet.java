@@ -78,12 +78,38 @@ public class AvatarImageServlet extends HttpServlet {
     private File resolveAvatarFile(String avatarPath) throws ServletException {
         File candidate = new File(avatarPath);
         if (candidate.isAbsolute()) {
+            if (candidate.exists()) {
+                return candidate;
+            }
+
+            // 兼容历史绝对路径失效场景：回退到当前 WebApp 头像目录按文件名查找。
+            String fileName = candidate.getName();
+            if (fileName != null && !fileName.trim().isEmpty()) {
+                File fallback = resolveFromWebRoot(AVATAR_DIR_NAME + "/" + fileName);
+                if (fallback != null && fallback.exists()) {
+                    return fallback;
+                }
+
+                File root = resolveProjectRoot();
+                if (root != null) {
+                    File fallbackFromRoot = new File(new File(root, AVATAR_DIR_NAME), fileName);
+                    if (fallbackFromRoot.exists()) {
+                        return fallbackFromRoot;
+                    }
+                }
+            }
+
             return candidate;
         }
 
         String normalized = avatarPath;
         if (normalized.startsWith("/")) {
             normalized = normalized.substring(1);
+        }
+
+        File fromWebRoot = resolveFromWebRoot(normalized);
+        if (fromWebRoot != null && fromWebRoot.exists()) {
+            return fromWebRoot;
         }
 
         File root = resolveProjectRoot();
@@ -100,6 +126,17 @@ public class AvatarImageServlet extends HttpServlet {
         }
 
         return candidate;
+    }
+
+    private File resolveFromWebRoot(String normalizedPath) {
+        if (normalizedPath == null || normalizedPath.trim().isEmpty()) {
+            return null;
+        }
+        String realPath = getServletContext().getRealPath("/" + normalizedPath);
+        if (realPath == null || realPath.trim().isEmpty()) {
+            return null;
+        }
+        return new File(realPath);
     }
 
     private File resolveProjectRoot() throws ServletException {

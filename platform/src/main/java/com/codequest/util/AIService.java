@@ -105,7 +105,7 @@ public final class AIService {
             }
             return fallbackResult("AI 返回格式异常");
         } catch (Exception ex) {
-            return fallbackResult("调用超时或网络异常");
+            return fallbackResult(resolveFallbackReason(ex));
         }
     }
 
@@ -129,7 +129,7 @@ public final class AIService {
             }
             return fallbackResult("AI 返回格式异常");
         } catch (Exception ex) {
-            return fallbackResult("调用超时或网络异常");
+            return fallbackResult(resolveFallbackReason(ex));
         }
     }
 
@@ -147,7 +147,7 @@ public final class AIService {
             }
             return fallbackResult("AI 返回格式异常");
         } catch (Exception ex) {
-            return fallbackResult("调用超时或网络异常");
+            return fallbackResult(resolveFallbackReason(ex));
         }
     }
 
@@ -166,7 +166,7 @@ public final class AIService {
             }
             return fallbackResult("AI 返回格式异常");
         } catch (Exception ex) {
-            return fallbackResult("调用超时或网络异常");
+            return fallbackResult(resolveFallbackReason(ex));
         }
     }
 
@@ -631,6 +631,26 @@ public final class AIService {
                 + "第一，先明确问题定义和目标，再给出核心思路；第二，补充复杂度分析与关键边界条件；"
                 + "第三，结合一个输入示例逐步推导结果，体现工程化表达与可验证性。";
         return new AIResult(65, feedback, "综合能力");
+    }
+
+    private static String resolveFallbackReason(Exception ex) {
+        String message = ex == null ? "" : safe(ex.getMessage());
+        if (message.contains("HTTP 401")) {
+            return "API Key 鉴权失败（401）";
+        }
+        if (message.contains("HTTP 402")) {
+            return "账户额度不足或未开通计费（402）";
+        }
+        if (message.contains("HTTP 403")) {
+            return "API 权限不足（403）";
+        }
+        if (message.contains("HTTP 429")) {
+            return "请求过于频繁或触发限流（429）";
+        }
+        if (message.contains("HTTP 5")) {
+            return "AI 服务端暂时异常（5xx）";
+        }
+        return "调用超时或网络异常";
     }
 
     @FunctionalInterface

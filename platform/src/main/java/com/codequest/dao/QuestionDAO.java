@@ -9,7 +9,9 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.codequest.model.Question;
@@ -112,62 +114,53 @@ public class QuestionDAO extends BaseDAO {
             return 0;
         }
 
-        String sql = "INSERT INTO t_question (title, content, type, difficulty, tags, standard_answer) VALUES (?, ?, ?, ?, ?, ?)";
-        int affected = 0;
-
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            for (Question question : questions) {
-                if (question == null || isBlank(question.getTitle()) || isBlank(question.getContent())) {
-                    continue;
-                }
-
-                ps.setString(1, question.getTitle().trim());
-                ps.setString(2, question.getContent().trim());
-                ps.setObject(3, question.getType(), Types.INTEGER);
-                ps.setObject(4, question.getDifficulty(), Types.INTEGER);
-                ps.setString(5, question.getTags());
-                ps.setString(6, question.getStandardAnswer());
-                ps.addBatch();
-                affected++;
-            }
-
-            if (affected == 0) {
-                return 0;
-            }
-            ps.executeBatch();
+        List<Question> uniqueQuestions = deduplicateByTitle(questions);
+        if (uniqueQuestions.isEmpty()) {
+            return 0;
         }
 
-        // Sync newly inserted questions to sys_question
-        syncNewQuestionsToSysQuestion();
+        int affected = 0;
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                long nextQuestionId = findNextGlobalQuestionId(conn);
+                for (Question question : uniqueQuestions) {
+                    if (question == null || isBlank(question.getTitle()) || isBlank(question.getContent())) {
+                        continue;
+                    }
+
+                    String normalizedTitle = normalizeTitle(question.getTitle());
+                    List<Long> existingIds = findQuestionIdsByTitle(conn, normalizedTitle);
+                    if (existingIds.isEmpty()) {
+                        long questionId = nextQuestionId++;
+                        insertQuestion(conn, questionId, question);
+                        upsertSysQuestion(conn, questionId, question);
+                    } else {
+                        long keepId = existingIds.get(0);
+                        mergeDuplicateQuestions(conn, keepId, existingIds);
+                        updateQuestionById(conn, keepId, question);
+                        upsertSysQuestion(conn, keepId, question);
+                    }
+                    affected++;
+                }
+
+                conn.commit();
+            } catch (SQLException ex) {
+                conn.rollback();
+                throw ex;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        }
 
         return affected;
     }
 
-    private void syncNewQuestionsToSysQuestion() throws SQLException {
-        // Copy questions from t_question that are not yet in sys_question
-        String syncSql = "INSERT IGNORE INTO sys_question (id, title, content, type, difficulty, tags, standard_answer, created_at, updated_at) "
-                + "SELECT id, title, content, type, difficulty, tags, standard_answer, created_at, updated_at FROM t_question "
-                + "WHERE id NOT IN (SELECT id FROM sys_question)";
-
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(syncSql)) {
-            ps.executeUpdate();
-        }
-    }
-
     public void addQuestion(Question question) throws SQLException {
-        String sql = "INSERT INTO t_question (title, content, type, difficulty, tags, standard_answer) "
-                + "VALUES (?, ?, ?, ?, ?, ?)";
-
         try (Connection conn = JDBCUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, question.getTitle());
-            ps.setString(2, question.getContent());
-            ps.setObject(3, question.getType(), Types.INTEGER);
-            ps.setObject(4, question.getDifficulty(), Types.INTEGER);
-            ps.setString(5, question.getTags());
-            ps.setString(6, question.getStandardAnswer());
+             PreparedStatement ps = conn.prepareStatement("INSERT INTO t_question (id, title, content, type, difficulty, tags, standard_answer) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+            long nextId = findNextGlobalQuestionId(conn);
+            bindQuestionInsert(ps, nextId, question);
             ps.executeUpdate();
         }
     }
@@ -196,6 +189,145 @@ public class QuestionDAO extends BaseDAO {
             ps.setLong(1, id);
             return ps.executeUpdate();
         }
+    }
+
+    private List<Question> deduplicateByTitle(List<Question> questions) {
+        Map<String, Question> uniqueMap = new LinkedHashMap<>();
+        for (Question question : questions) {
+            if (question == null || isBlank(question.getTitle()) || isBlank(question.getContent())) {
+                continue;
+            }
+            uniqueMap.put(normalizeTitle(question.getTitle()), question);
+        }
+        return new ArrayList<>(uniqueMap.values());
+    }
+
+    private List<Long> findQuestionIdsByTitle(Connection conn, String title) throws SQLException {
+        List<Long> ids = new ArrayList<>();
+        String sql = "SELECT id FROM t_question WHERE title = ? ORDER BY id ASC";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, title);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    ids.add(rs.getLong("id"));
+                }
+            }
+        }
+        return ids;
+    }
+
+    private long insertQuestion(Connection conn, long questionId, Question question) throws SQLException {
+        String sql = "INSERT INTO t_question (id, title, content, type, difficulty, tags, standard_answer) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            bindQuestionInsert(ps, questionId, question);
+            ps.executeUpdate();
+        }
+        return questionId;
+    }
+
+    private int updateQuestionById(Connection conn, long questionId, Question question) throws SQLException {
+        String sql = "UPDATE t_question SET title = ?, content = ?, type = ?, difficulty = ?, tags = ?, standard_answer = ?, updated_at = NOW() "
+                + "WHERE id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, question.getTitle().trim());
+            ps.setString(2, question.getContent().trim());
+            ps.setObject(3, question.getType(), Types.INTEGER);
+            ps.setObject(4, question.getDifficulty(), Types.INTEGER);
+            ps.setString(5, question.getTags());
+            ps.setString(6, question.getStandardAnswer());
+            ps.setLong(7, questionId);
+            return ps.executeUpdate();
+        }
+    }
+
+    private void upsertSysQuestion(Connection conn, long questionId, Question question) throws SQLException {
+        String sql = "INSERT INTO sys_question (id, title, content, type, difficulty, tags, standard_answer, created_at, updated_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW()) "
+                + "ON DUPLICATE KEY UPDATE title = VALUES(title), content = VALUES(content), type = VALUES(type), "
+                + "difficulty = VALUES(difficulty), tags = VALUES(tags), standard_answer = VALUES(standard_answer), updated_at = NOW()";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, questionId);
+            ps.setString(2, question.getTitle().trim());
+            ps.setString(3, question.getContent().trim());
+            ps.setObject(4, question.getType(), Types.INTEGER);
+            ps.setObject(5, question.getDifficulty(), Types.INTEGER);
+            ps.setString(6, question.getTags());
+            ps.setString(7, question.getStandardAnswer());
+            ps.executeUpdate();
+        }
+    }
+
+    private void mergeDuplicateQuestions(Connection conn, long keepId, List<Long> existingIds) throws SQLException {
+        if (existingIds.size() <= 1) {
+            return;
+        }
+
+        for (Long duplicateId : existingIds) {
+            if (duplicateId == null || duplicateId == keepId) {
+                continue;
+            }
+            reassignQuestionReferences(conn, duplicateId, keepId);
+            deleteSysQuestionById(conn, duplicateId);
+            deleteQuestionById(conn, duplicateId);
+        }
+    }
+
+    private void reassignQuestionReferences(Connection conn, long fromQuestionId, long toQuestionId) throws SQLException {
+        updateQuestionReference(conn, "sys_evaluation", fromQuestionId, toQuestionId);
+        updateQuestionReference(conn, "sys_favorite", fromQuestionId, toQuestionId);
+        updateQuestionReference(conn, "sys_answer_draft", fromQuestionId, toQuestionId);
+        updateQuestionReference(conn, "t_interview_record", fromQuestionId, toQuestionId);
+    }
+
+    private void updateQuestionReference(Connection conn, String tableName, long fromQuestionId, long toQuestionId) throws SQLException {
+        String sql = "UPDATE " + tableName + " SET question_id = ? WHERE question_id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, toQuestionId);
+            ps.setLong(2, fromQuestionId);
+            ps.executeUpdate();
+        }
+    }
+
+    private void deleteQuestionById(Connection conn, long questionId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM t_question WHERE id = ?")) {
+            ps.setLong(1, questionId);
+            ps.executeUpdate();
+        }
+    }
+
+    private void deleteSysQuestionById(Connection conn, long questionId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM sys_question WHERE id = ?")) {
+            ps.setLong(1, questionId);
+            ps.executeUpdate();
+        }
+    }
+
+    private long findNextGlobalQuestionId(Connection conn) throws SQLException {
+        String sql = "SELECT COALESCE(GREATEST((SELECT COALESCE(MAX(id), 0) FROM t_question), "
+                + "(SELECT COALESCE(MAX(id), 0) FROM sys_question)), 0) + 1 AS next_id";
+        try (PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return rs.getLong("next_id");
+            }
+        }
+        throw new SQLException("无法计算下一条题目ID。");
+    }
+
+    private void bindQuestionInsert(PreparedStatement ps, long questionId, Question question) throws SQLException {
+        ps.setLong(1, questionId);
+        ps.setString(2, question.getTitle().trim());
+        ps.setString(3, question.getContent().trim());
+        ps.setObject(4, question.getType(), Types.INTEGER);
+        ps.setObject(5, question.getDifficulty(), Types.INTEGER);
+        ps.setString(6, question.getTags());
+        ps.setString(7, question.getStandardAnswer());
+    }
+
+    private String normalizeTitle(String title) {
+        return title == null ? "" : title.trim();
     }
 
     public List<Question> findAllQuestions() throws SQLException {

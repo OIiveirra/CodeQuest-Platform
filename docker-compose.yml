@@ -41,12 +41,11 @@ services:
     image: tomcat:9.0-jdk17-temurin
     container_name: codequest-app
     restart: unless-stopped
+    env_file:
+      - ./platform/.env
     environment:
       DB_PASSWORD: ${DB_PASSWORD:-root}
       DB_USERNAME: ${DB_USERNAME:-root}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      DEEPSEEK_API_URL: ${DEEPSEEK_API_URL:-https://api.deepseek.com}
-      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-reasoner}
     depends_on:
       mysql:
         condition: service_healthy

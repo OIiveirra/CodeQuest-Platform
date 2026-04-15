@@ -276,10 +276,14 @@
                         <div class="card-body p-4">
                             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                                 <h5 class="fw-bold mb-0">周报中心</h5>
-                                <form method="post" action="${pageContext.request.contextPath}/report/weekly/generate" class="m-0">
-                                    <button type="submit" class="btn btn-primary">生成本周周报</button>
+                                <form id="weeklyReportForm" method="post" action="${pageContext.request.contextPath}/report/weekly/generate" class="m-0">
+                                    <button id="weeklyReportSubmit" type="submit" class="btn btn-primary">
+                                        <span class="weekly-btn-text">生成本周周报</span>
+                                    </button>
                                 </form>
                             </div>
+
+                            <div id="weeklyReportAlert" class="d-none" role="alert"></div>
 
                             <c:if test="${weeklyReportStatus == 'ok'}">
                                 <div class="alert alert-success py-2">周报已生成，如本周已存在则自动复用历史结果。</div>
@@ -289,10 +293,10 @@
                             </c:if>
 
                             <c:if test="${empty weeklyReports}">
-                                <div class="text-secondary">暂无周报记录，点击“生成本周周报”开始创建。</div>
+                                <div id="weeklyReportEmpty" class="text-secondary">暂无周报记录，点击“生成本周周报”开始创建。</div>
                             </c:if>
 
-                            <ul class="timeline mb-0">
+                            <ul id="weeklyReportTimeline" class="timeline mb-0">
                                 <c:forEach var="report" items="${weeklyReports}">
                                     <li class="timeline-item">
                                         <div class="card border-0 bg-light">
@@ -304,7 +308,10 @@
                                                     </span>
                                                 </div>
                                                 <div class="small text-secondary mb-2"><c:out value="${report.summary}" /></div>
-                                                <div style="white-space: pre-wrap; line-height: 1.7;"><c:out value="${report.content}" /></div>
+                                                    <div class="weekly-report-block">
+                                                        <div class="weekly-report-source d-none"><c:out value="${report.content}" /></div>
+                                                    <div class="weekly-report-rendered" style="white-space: pre-wrap; line-height: 1.7;"><c:out value="${report.content}" /></div>
+                                                    </div>
                                             </div>
                                         </div>
                                     </li>
@@ -697,6 +704,279 @@
                 })
                 .catch(function () {
                     modalBody.innerHTML = '<div class="text-danger">加载会话详情失败，请稍后重试。</div>';
+                });
+        });
+    })();
+
+    (function () {
+        var form = document.getElementById('weeklyReportForm');
+        var submitBtn = document.getElementById('weeklyReportSubmit');
+        var alertBox = document.getElementById('weeklyReportAlert');
+        var timeline = document.getElementById('weeklyReportTimeline');
+        if (!form || !submitBtn || !alertBox || !timeline) {
+            return;
+        }
+
+        var btnText = submitBtn.querySelector('.weekly-btn-text');
+
+        function cleanWeeklyMarkdown(text) {
+            if (text === null || text === undefined) {
+                return '';
+            }
+
+            var result = String(text).replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+
+            if (result.startsWith('```')) {
+                var firstBreak = result.indexOf('\n');
+                if (firstBreak > 0) {
+                    result = result.slice(firstBreak + 1).trim();
+                }
+                var closingFence = result.lastIndexOf('```');
+                if (closingFence >= 0) {
+                    result = result.slice(0, closingFence).trim();
+                }
+            }
+
+            if (/^json\s*:?/i.test(result)) {
+                result = result.replace(/^json\s*:?/i, '').trim();
+            }
+
+            if (result.startsWith('{') && result.endsWith('}')) {
+                try {
+                    var parsed = JSON.parse(result);
+                    if (parsed && typeof parsed === 'object') {
+                        if (parsed.output) {
+                            result = String(parsed.output);
+                        } else if (parsed.content) {
+                            result = String(parsed.content);
+                        } else if (parsed.summary) {
+                            result = String(parsed.summary);
+                        } else if (parsed.thoughts && typeof parsed.thoughts === 'object') {
+                            result = String(parsed.thoughts.output || parsed.thoughts.analysis || '');
+                        }
+                    }
+                } catch (e) {
+                    // 不是 JSON 就保持原样。
+                }
+            }
+
+            return result.replace(/\\n/g, '\n').replace(/\\t/g, '\t').trim();
+        }
+
+        function escapeHtml(text) {
+            if (text === null || text === undefined) {
+                return '';
+            }
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function applyInlineMarkdown(text) {
+            var escaped = escapeHtml(text);
+            escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
+            return escaped;
+        }
+
+        function renderMarkdown(markdown) {
+            var text = cleanWeeklyMarkdown(markdown);
+            if (!text) {
+                return '<div class="text-secondary">暂无周报内容。</div>';
+            }
+
+            var lines = text.split('\n');
+            var html = [];
+            var paragraph = [];
+            var inUl = false;
+            var inOl = false;
+
+            function closeParagraph() {
+                if (paragraph.length) {
+                    html.push('<p style="white-space:pre-wrap; margin-bottom:0.75rem; line-height:1.75;">' + applyInlineMarkdown(paragraph.join('\n').trim()) + '</p>');
+                    paragraph = [];
+                }
+            }
+
+            function closeLists() {
+                if (inUl) {
+                    html.push('</ul>');
+                    inUl = false;
+                }
+                if (inOl) {
+                    html.push('</ol>');
+                    inOl = false;
+                }
+            }
+
+            function openUl() {
+                if (!inUl) {
+                    closeParagraph();
+                    closeLists();
+                    html.push('<ul style="margin-bottom:0.75rem;">');
+                    inUl = true;
+                }
+            }
+
+            function openOl() {
+                if (!inOl) {
+                    closeParagraph();
+                    closeLists();
+                    html.push('<ol style="margin-bottom:0.75rem;">');
+                    inOl = true;
+                }
+            }
+
+            for (var i = 0; i < lines.length; i += 1) {
+                var line = lines[i].trim();
+                if (!line) {
+                    closeParagraph();
+                    closeLists();
+                    continue;
+                }
+
+                var hMatch = line.match(/^([#]{1,3})\s+(.+)$/);
+                if (hMatch) {
+                    closeParagraph();
+                    closeLists();
+                    var level = Math.min(hMatch[1].length + 1, 4);
+                    html.push('<h' + level + ' style="margin:0.25rem 0 0.6rem; font-weight:700;">' + applyInlineMarkdown(hMatch[2]) + '</h' + level + '>');
+                    continue;
+                }
+
+                var ulMatch = line.match(/^[-*+]\s+(.+)$/);
+                if (ulMatch) {
+                    openUl();
+                    html.push('<li style="margin-bottom:0.25rem;">' + applyInlineMarkdown(ulMatch[1]) + '</li>');
+                    continue;
+                }
+
+                var olMatch = line.match(/^\d+[.)]\s+(.+)$/);
+                if (olMatch) {
+                    openOl();
+                    html.push('<li style="margin-bottom:0.25rem;">' + applyInlineMarkdown(olMatch[1]) + '</li>');
+                    continue;
+                }
+
+                closeLists();
+                paragraph.push(line);
+            }
+
+            closeParagraph();
+            closeLists();
+            return html.join('');
+        }
+
+        function renderWeeklyReportBlock(block) {
+            if (!block) {
+                return;
+            }
+            var source = block.querySelector('.weekly-report-source');
+            var rendered = block.querySelector('.weekly-report-rendered');
+            if (!source || !rendered) {
+                return;
+            }
+            rendered.innerHTML = renderMarkdown(source.textContent || source.innerText || '');
+        }
+
+        function renderAllWeeklyReports() {
+            var blocks = document.querySelectorAll('.weekly-report-block');
+            for (var i = 0; i < blocks.length; i += 1) {
+                renderWeeklyReportBlock(blocks[i]);
+            }
+        }
+
+        renderAllWeeklyReports();
+
+        function showAlert(type, message) {
+            alertBox.className = 'alert alert-' + type + ' py-2';
+            alertBox.textContent = message;
+            alertBox.classList.remove('d-none');
+        }
+
+        function renderTimelineItem(report) {
+            var title = escapeHtml(report && report.title ? report.title : '面试周报（职业发展教练）');
+            var summary = escapeHtml(report && report.summary ? report.summary : '');
+            var startLabel = escapeHtml(report && report.periodStartLabel ? report.periodStartLabel : '--');
+            var endLabel = escapeHtml(report && report.periodEndLabel ? report.periodEndLabel : '--');
+            var content = escapeHtml(report && report.content ? report.content : '');
+
+            return ''
+                + '<li class="timeline-item">'
+                + '  <div class="card border-0 bg-light">'
+                + '    <div class="card-body py-3">'
+                + '      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">'
+                + '        <div class="fw-semibold">' + title + '</div>'
+                + '        <span class="badge text-bg-primary">' + startLabel + ' ~ ' + endLabel + '</span>'
+                + '      </div>'
+                + '      <div class="small text-secondary mb-2">' + summary + '</div>'
+                + '      <div class="weekly-report-block">'
+                + '        <div class="weekly-report-source d-none">' + content + '</div>'
+                + '        <div class="weekly-report-rendered" style="white-space: pre-wrap; line-height: 1.7;">' + content + '</div>'
+                + '      </div>'
+                + '    </div>'
+                + '  </div>'
+                + '</li>';
+        }
+
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            submitBtn.disabled = true;
+            if (btnText) {
+                btnText.textContent = '生成中...';
+            }
+            submitBtn.classList.add('disabled');
+            showAlert('info', '周报生成中，请稍候...');
+
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'fetch',
+                    'Accept': 'application/json'
+                }
+            })
+                .then(function (resp) {
+                    return resp.json().then(function (json) {
+                        return { ok: resp.ok, json: json || {} };
+                    }).catch(function () {
+                        return { ok: resp.ok, json: {} };
+                    });
+                })
+                .then(function (result) {
+                    if (!result.ok || result.json.code !== 0) {
+                        throw new Error(result.json.message || '周报生成失败，请稍后重试。');
+                    }
+
+                    var emptyBlock = document.getElementById('weeklyReportEmpty');
+                    if (emptyBlock) {
+                        emptyBlock.remove();
+                    }
+
+                    var payload = result.json.data || {};
+                    var latestItem = timeline.querySelector('.timeline-item');
+                    if (latestItem) {
+                        latestItem.insertAdjacentHTML('beforebegin', renderTimelineItem(payload));
+                    } else {
+                        timeline.innerHTML = renderTimelineItem(payload);
+                    }
+
+                    renderAllWeeklyReports();
+
+                    showAlert('success', '周报生成成功，已更新到列表顶部。');
+                })
+                .catch(function (err) {
+                    showAlert('danger', err && err.message ? err.message : '周报生成失败，请稍后重试。');
+                })
+                .finally(function () {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('disabled');
+                    if (btnText) {
+                        btnText.textContent = '生成本周周报';
+                    }
                 });
         });
     })();

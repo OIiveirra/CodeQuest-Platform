@@ -638,7 +638,7 @@
             + '      <div class="modal-body">'
             + '        <div class="mb-3"><label class="form-label">CSV 文件</label><input id="csvImportFile" type="file" class="form-control" accept=".csv" /></div>'
             + '        <div id="csvImportAlert" class="alert d-none" role="alert"></div>'
-            + '        <div class="small text-secondary">CSV 列顺序建议：标题,内容,类型,难度,标签,标准答案。首行可为表头。</div>'
+            + '        <div class="small text-secondary">CSV 列顺序建议：标题,内容,类型,难度,标签,标准答案。首行可为表头。同名题目会自动合并更新。</div>'
             + '      </div>'
             + '      <div class="modal-footer">'
             + '        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>'

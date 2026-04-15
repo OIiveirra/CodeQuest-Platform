@@ -21,18 +21,31 @@ import com.codequest.util.JDBCUtils;
 public class AdminQuestionDAO {
 
     public void addQuestion(Question question) throws SQLException {
-        String sql = "INSERT INTO sys_question (title, content, type, difficulty, tags, standard_answer) "
-                + "VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = JDBCUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, question.getTitle());
-            ps.setString(2, question.getContent());
-            ps.setObject(3, question.getType(), Types.INTEGER);
-            ps.setObject(4, question.getDifficulty(), Types.INTEGER);
-            ps.setString(5, question.getTags());
-            ps.setString(6, question.getStandardAnswer());
+             PreparedStatement ps = conn.prepareStatement(
+                     "INSERT INTO sys_question (id, title, content, type, difficulty, tags, standard_answer) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+            long nextId = findNextQuestionId(conn);
+            ps.setLong(1, nextId);
+            ps.setString(2, question.getTitle());
+            ps.setString(3, question.getContent());
+            ps.setObject(4, question.getType(), Types.INTEGER);
+            ps.setObject(5, question.getDifficulty(), Types.INTEGER);
+            ps.setString(6, question.getTags());
+            ps.setString(7, question.getStandardAnswer());
             ps.executeUpdate();
         }
+    }
+
+    private long findNextQuestionId(Connection conn) throws SQLException {
+        String sql = "SELECT COALESCE(GREATEST((SELECT COALESCE(MAX(id), 0) FROM t_question), "
+                + "(SELECT COALESCE(MAX(id), 0) FROM sys_question)), 0) + 1 AS next_id";
+        try (PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return rs.getLong("next_id");
+            }
+        }
+        throw new SQLException("无法计算下一条题目ID。");
     }
 
     public int updateQuestion(Question question) throws SQLException {

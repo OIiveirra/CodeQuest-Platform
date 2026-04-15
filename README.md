@@ -45,7 +45,7 @@ docker compose up -d
 ## 数据恢复
 
 - 全量恢复脚本：`platform/scripts/recover_codequest_db.sql`
-- 题库恢复脚本：`platform/scripts/recover_question_bank.sql`
+- 初始 10 道例题恢复脚本：`platform/sql/init.sql`
 - 恢复说明：`docs/项目恢复说明.md`
 
 ## 文档入口

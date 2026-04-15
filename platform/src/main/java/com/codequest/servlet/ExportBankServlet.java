@@ -40,7 +40,7 @@ public class ExportBankServlet extends HttpServlet {
         try (PrintWriter writer = resp.getWriter()) {
             // BOM for Excel UTF-8 compatibility.
             writer.write('\ufeff');
-            writer.println("ID,标题,分类,难度,标签");
+            writer.println("ID,标题,分类,难度,标签,标准答案");
 
             for (Question q : questionList) {
                 String category = nullSafe(q.getTags());
@@ -49,7 +49,8 @@ public class ExportBankServlet extends HttpServlet {
                         csv(q.getTitle()),
                         csv(category),
                         csv(q.getDifficulty() == null ? "" : String.valueOf(q.getDifficulty())),
-                        csv(q.getTags()));
+                        csv(q.getTags()),
+                        csv(q.getStandardAnswer()));
                 writer.println(row);
             }
             writer.flush();
@@ -76,7 +77,7 @@ public class ExportBankServlet extends HttpServlet {
         try {
             int parsed = Integer.parseInt(raw.trim());
             return parsed > 0 ? parsed : null;
-        } catch (Exception ex) {
+        } catch (NumberFormatException ex) {
             return null;
         }
     }

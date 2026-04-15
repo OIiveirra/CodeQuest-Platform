@@ -16,6 +16,9 @@ import com.codequest.dao.ReportDAO;
 import com.codequest.model.EvaluationRecord;
 import com.codequest.model.WeeklyReport;
 import com.codequest.util.AIService;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * 面试周报服务：聚合近 7 天测评数据并生成职业发展教练周报。
@@ -40,6 +43,7 @@ public class ReportService {
         String digest = buildDigest(records);
         String prompt = buildWeeklyPrompt(username, periodStart, periodEnd, digest);
         String aiContent = AIService.getRawContentFromPrompt(prompt, "deepseek-reasoner");
+        aiContent = normalizeWeeklyContent(aiContent);
         if (aiContent == null || aiContent.trim().isEmpty()) {
             aiContent = "本周样本不足或模型暂不可用。建议继续完成至少 5 次完整会话测评，以便生成更具针对性的周报。";
         }
@@ -90,7 +94,8 @@ public class ReportService {
         return "你是资深职业发展教练，请基于该用户近 7 天的技术面试测评摘要生成周报。"
                 + "用户：" + safe(username)
                 + "；统计区间：" + start + " 到 " + end + "。"
-                + "请输出 Markdown，必须包含以下 3 个板块：\n"
+                + "请只输出 Markdown 正文，不要输出 JSON、不要输出代码块、不要输出前后缀说明。\n"
+                + "必须包含以下 3 个板块：\n"
                 + "1) 本周能力涨幅（按技术维度分析，指出提升证据）\n"
                 + "2) 高频错点（至少 3 条，给出错误模式）\n"
                 + "3) 下周复习路线图（按天给出可执行计划）\n"
@@ -133,5 +138,124 @@ public class ReportService {
 
     private String safe(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private String normalizeWeeklyContent(String rawContent) {
+        if (rawContent == null) {
+            return "";
+        }
+
+        String text = rawContent.trim();
+        if (text.isEmpty()) {
+            return "";
+        }
+
+        text = stripCodeFence(text);
+        text = stripLeadingJsonLabel(text);
+        text = unwrapJsonPrimitive(text);
+        text = extractReportBodyFromJson(text);
+        text = stripCodeFence(text);
+        text = text.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "\t").trim();
+
+        if (text.startsWith("\"") && text.endsWith("\"") && text.length() > 1) {
+            text = text.substring(1, text.length() - 1);
+        }
+
+        return text.trim();
+    }
+
+    private String stripCodeFence(String text) {
+        String result = text == null ? "" : text.trim();
+        if (result.startsWith("```")) {
+            int firstBreak = result.indexOf('\n');
+            if (firstBreak > 0) {
+                result = result.substring(firstBreak + 1).trim();
+            } else {
+                result = result.substring(3).trim();
+            }
+        }
+
+        int closingFence = result.lastIndexOf("```");
+        if (closingFence >= 0) {
+            result = result.substring(0, closingFence).trim();
+        }
+        return result;
+    }
+
+    private String stripLeadingJsonLabel(String text) {
+        if (text == null) {
+            return "";
+        }
+        String result = text.trim();
+        if (result.regionMatches(true, 0, "json", 0, 4)) {
+            result = result.substring(4).trim();
+            if (result.startsWith(":")) {
+                result = result.substring(1).trim();
+            }
+        }
+        return result;
+    }
+
+    private String unwrapJsonPrimitive(String text) {
+        try {
+            JsonElement element = JsonParser.parseString(text);
+            if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+                return element.getAsString();
+            }
+        } catch (RuntimeException ignored) {
+            // 不是 JSON 字符串时保持原文。
+        }
+        return text;
+    }
+
+    private String extractReportBodyFromJson(String text) {
+        try {
+            JsonElement element = JsonParser.parseString(text);
+            if (!element.isJsonObject()) {
+                return text;
+            }
+
+            JsonObject root = element.getAsJsonObject();
+            String output = readStringField(root, "output");
+            if (!output.isEmpty()) {
+                return output;
+            }
+
+            String content = readStringField(root, "content");
+            if (!content.isEmpty()) {
+                return content;
+            }
+
+            String summary = readStringField(root, "summary");
+            if (!summary.isEmpty()) {
+                return summary;
+            }
+
+            if (root.has("thoughts") && root.get("thoughts").isJsonObject()) {
+                JsonObject thoughts = root.getAsJsonObject("thoughts");
+                String thoughtOutput = readStringField(thoughts, "output");
+                if (!thoughtOutput.isEmpty()) {
+                    return thoughtOutput;
+                }
+                String analysis = readStringField(thoughts, "analysis");
+                if (!analysis.isEmpty()) {
+                    return analysis;
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // 非 JSON 文本直接返回。
+        }
+        return text;
+    }
+
+    private String readStringField(JsonObject root, String fieldName) {
+        if (root == null || fieldName == null || !root.has(fieldName) || root.get(fieldName).isJsonNull()) {
+            return "";
+        }
+        try {
+            return root.get(fieldName).getAsString().trim();
+        } catch (Exception ignored) {
+            return "";
+        }
     }
 }

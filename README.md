@@ -22,7 +22,25 @@ docker compose version
 java -version
 ```
 
-## 3. 首次启动（推荐路径）
+## 3. 配置文件
+
+首次运行前先准备 `platform/.env`：
+
+```powershell
+Copy-Item .\platform\.env.example .\platform\.env
+```
+
+然后编辑 `platform/.env`，至少填写：
+
+- DEEPSEEK_API_KEY
+
+修改 `platform/.env` 后需要重建 app：
+
+```powershell
+docker compose up -d --force-recreate app
+```
+
+## 4. 首次启动（推荐路径）
 
 ### 步骤 1：编译
 
@@ -56,13 +74,13 @@ docker compose ps
 - MySQL：localhost:3306
 - Redis：localhost:6379
 
-## 4. 默认账号
+## 5. 默认账号
 
 - 管理员：Oliveira / 123456
 - 管理员：admin / admin123
 - 测试用户：testuser / 123456
 
-## 5. 数据恢复
+## 6. 数据恢复
 
 ### 5.1 全量恢复（新环境优先）
 
@@ -84,7 +102,7 @@ docker exec codequest-mysql sh -lc "mysql -uroot -proot < /tmp/init.sql"
 
 注意：执行 init.sql 会重建 codequest_db，请先确认是否需要备份当前数据。
 
-## 6. 常用运维命令
+## 7. 常用运维命令
 
 ```powershell
 # 查看服务
@@ -100,7 +118,7 @@ docker compose up -d --force-recreate app
 docker compose down
 ```
 
-## 7. 常见问题
+## 8. 常见问题
 
 ### 7.1 8081 访问失败
 
@@ -123,7 +141,7 @@ docker exec codequest-mysql mysql -uroot -proot -D codequest_db -e "SELECT usern
 - 检查 platform/.env 中 DeepSeek 配置是否正确
 - app 容器重建后再验证：docker compose up -d --force-recreate app
 
-## 8. 文档入口
+## 9. 文档入口
 
 - 恢复说明：docs/项目恢复说明.md
 - WBS 分工书：docs/WBS分工书.md

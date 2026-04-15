@@ -1,0 +1,64 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: codequest-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: codequest_db
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./platform/sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:6-alpine
+    container_name: codequest-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  app:
+    image: tomcat:9.0-jdk17-temurin
+    container_name: codequest-app
+    restart: unless-stopped
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_API_URL: ${DEEPSEEK_API_URL:-https://api.deepseek.com}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-reasoner}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./platform/target/platform:/usr/local/tomcat/webapps/ROOT
+      - ./platform/docker/db.properties:/usr/local/tomcat/webapps/ROOT/WEB-INF/classes/db.properties:ro
+      - ./platform/data/avatars:/usr/local/tomcat/webapps/ROOT/uploads/avatars
+
+volumes:
+  mysql_data:
+  redis_data:

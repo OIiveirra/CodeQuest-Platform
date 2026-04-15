@@ -1,54 +1,129 @@
 # CodeQuest
 
-CodeQuest 是一个基于 Servlet/JSP 的 IT 面试训练与评测系统，支持题库管理、作答评测、收藏错题、报告查看等功能。
+CodeQuest 是一个基于 Servlet/JSP 的 IT 面试训练与评测系统，支持题库管理、作答评测、错题与收藏、周报与会话记录查看。
 
-## 目录结构
+## 1. 项目结构
 
-- `docker-compose.yml`：项目统一启动入口
-- `platform/`：项目代码与运行资源
-- `docs/`：课程提交文档（恢复说明、WBS 分工）
+- docker-compose.yml：统一启动入口（MySQL + Redis + Tomcat）
+- platform/：Java Web 项目代码、SQL、脚本与配置
+- docs/：项目说明文档（恢复说明、WBS 分工）
 
-## 运行环境
+## 2. 运行要求
 
 - JDK 17
 - Maven 3.8+
 - Docker Desktop（Compose v2）
 
-## 快速启动
+建议先在仓库根目录检查：
 
-1. 构建项目
+```powershell
+docker --version
+docker compose version
+java -version
+```
 
-```bash
-cd platform
+## 3. 首次启动（推荐路径）
+
+### 步骤 1：编译
+
+```powershell
+cd .\platform
 mvn clean package -DskipTests
 ```
 
-2. 启动服务
+### 步骤 2：回到根目录启动容器
 
-```bash
+```powershell
 cd ..
 docker compose up -d
 ```
 
-3. 访问系统
+### 步骤 3：确认服务状态
 
-- 应用地址：`http://localhost:8081`
-- MySQL：`localhost:3306`
-- Redis：`localhost:6379`
+```powershell
+docker compose ps
+```
 
-## 默认账号
+预期状态：
 
-- 管理员：`Oliveira / 123456`
-- 管理员：`admin / admin123`
-- 测试用户：`testuser / 123456`
+- codequest-app：Up
+- codequest-mysql：Up (healthy)
+- codequest-redis：Up (healthy)
 
-## 数据恢复
+### 步骤 4：访问系统
 
-- 全量恢复脚本：`platform/scripts/recover_codequest_db.sql`
-- 初始 10 道例题恢复脚本：`platform/sql/init.sql`
-- 恢复说明：`docs/项目恢复说明.md`
+- 应用：http://localhost:8081
+- MySQL：localhost:3306
+- Redis：localhost:6379
 
-## 文档入口
+## 4. 默认账号
 
-- 项目恢复说明：`docs/项目恢复说明.md`
-- WBS 分工书：`docs/WBS分工书.md`
+- 管理员：Oliveira / 123456
+- 管理员：admin / admin123
+- 测试用户：testuser / 123456
+
+## 5. 数据恢复
+
+### 5.1 全量恢复（新环境优先）
+
+脚本：platform/scripts/recover_codequest_db.sql
+
+```powershell
+docker cp .\platform\scripts\recover_codequest_db.sql codequest-mysql:/tmp/recover_codequest_db.sql
+docker exec codequest-mysql sh -lc "mysql -uroot -proot < /tmp/recover_codequest_db.sql"
+```
+
+### 5.2 恢复初始 10 道示例题（用于重置）
+
+脚本：platform/sql/init.sql
+
+```powershell
+docker cp .\platform\sql\init.sql codequest-mysql:/tmp/init.sql
+docker exec codequest-mysql sh -lc "mysql -uroot -proot < /tmp/init.sql"
+```
+
+注意：执行 init.sql 会重建 codequest_db，请先确认是否需要备份当前数据。
+
+## 6. 常用运维命令
+
+```powershell
+# 查看服务
+docker compose ps
+
+# 查看应用日志
+docker compose logs -f app
+
+# 重建并重启 app（Java 代码改动后常用）
+docker compose up -d --force-recreate app
+
+# 停止服务
+docker compose down
+```
+
+## 7. 常见问题
+
+### 7.1 8081 访问失败
+
+- 先执行 docker compose ps 确认 app 是否 Up
+- 若未启动，执行 docker compose up -d
+- 若已启动但不可访问，查看 docker compose logs --tail 200 app
+
+### 7.2 数据库恢复后无法登录
+
+- 确认 SQL 是否执行成功
+- 确认使用的是本文档默认账号
+- 可通过容器内查询核对用户：
+
+```powershell
+docker exec codequest-mysql mysql -uroot -proot -D codequest_db -e "SELECT username,role FROM sys_user;"
+```
+
+### 7.3 AI 功能离线
+
+- 检查 platform/.env 中 DeepSeek 配置是否正确
+- app 容器重建后再验证：docker compose up -d --force-recreate app
+
+## 8. 文档入口
+
+- 恢复说明：docs/项目恢复说明.md
+- WBS 分工书：docs/WBS分工书.md

@@ -23,6 +23,7 @@ public final class InterviewSessionUtils {
 
     @SuppressWarnings("unchecked")
     public static List<ConversationMessage> getMessages(HttpSession session) {
+        // 读取会话中的消息历史。
         if (session == null) {
             return new ArrayList<>();
         }
@@ -41,6 +42,7 @@ public final class InterviewSessionUtils {
     }
 
     public static void saveMessages(HttpSession session, List<ConversationMessage> messages) {
+        // 保存会话中的消息历史。
         if (session == null) {
             return;
         }
@@ -48,6 +50,7 @@ public final class InterviewSessionUtils {
     }
 
     public static void clear(HttpSession session) {
+        // 清理会话中的面试上下文。
         if (session == null) {
             return;
         }
@@ -58,6 +61,7 @@ public final class InterviewSessionUtils {
     }
 
     public static String ensureInterviewSessionId(HttpSession session) {
+        // 初始化面试会话 ID。
         if (session == null) {
             return null;
         }
@@ -89,6 +93,7 @@ public final class InterviewSessionUtils {
     }
 
     public static void setQuestionId(HttpSession session, Long questionId) {
+        // 记录当前题目 ID。
         if (session != null) {
             session.setAttribute(SESSION_QUESTION_ID_KEY, questionId);
         }
@@ -109,6 +114,7 @@ public final class InterviewSessionUtils {
     }
 
     public static void setFollowUpQuestion(HttpSession session, String followUpQuestion) {
+        // 记录当前追问内容。
         if (session != null) {
             session.setAttribute(SESSION_FOLLOW_UP_KEY, followUpQuestion);
         }

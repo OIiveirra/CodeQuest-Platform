@@ -30,6 +30,7 @@ public class AnswerDraftServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        // 草稿读取入口。
         resp.setCharacterEncoding("UTF-8");
         resp.setContentType("application/json;charset=UTF-8");
 
@@ -66,6 +67,7 @@ public class AnswerDraftServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        // 草稿保存入口。
         req.setCharacterEncoding("UTF-8");
         resp.setCharacterEncoding("UTF-8");
         resp.setContentType("application/json;charset=UTF-8");
@@ -118,6 +120,7 @@ public class AnswerDraftServlet extends HttpServlet {
     }
 
     private void writeError(HttpServletResponse resp, int status, String message) throws IOException {
+        // 统一错误返回。
         resp.setStatus(status);
         Map<String, Object> payload = new HashMap<>();
         payload.put("success", false);

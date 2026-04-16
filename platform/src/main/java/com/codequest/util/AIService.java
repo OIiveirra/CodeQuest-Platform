@@ -253,6 +253,7 @@ public final class AIService {
         TokenUsage usage = TokenUsage.empty();
         int status = -1;
         try {
+            // 统一在此处发送 HTTP 请求，便于集中管理超时、鉴权与日志埋点。
             URL url = new URL(DEEPSEEK_API_URL);
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("POST");
@@ -273,6 +274,7 @@ public final class AIService {
                     : connection.getErrorStream();
 
             if (stream) {
+                // 流式模式下拼接增量 token；非流式则直接读取完整 JSON 响应。
                 String streamed = readStreamedContent(responseStream, status, tokenHandler);
                 logApiCall(model, true, status, startNanos, usage);
                 return streamed;
@@ -305,6 +307,7 @@ public final class AIService {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
+                // DeepSeek SSE 每行以 data: 开头，其他行（心跳/空行）直接跳过。
                 if (!line.startsWith("data:")) {
                     continue;
                 }
@@ -455,7 +458,7 @@ public final class AIService {
 
             return new AIResult(score, feedback, category.trim(), followUpQuestion.trim());
         } catch (Exception ex) {
-            // 当返回不是规范 JSON 时，回退到正则提取分数与建议。
+            // 当模型输出了自然语言或半结构化文本时，走正则降级解析兜底。
             AIResult regexParsed = parseAIResultByRegex(content);
             if (regexParsed != null) {
                 return regexParsed;
@@ -537,6 +540,7 @@ public final class AIService {
     private static String extractJson(String text) {
         String cleaned = text == null ? "" : text.trim();
 
+        // 兼容 ```json ... ``` 包裹输出，先剥离代码块再截取最外层 JSON 对象。
         if (cleaned.startsWith("```")) {
             int firstLineEnd = cleaned.indexOf('\n');
             if (firstLineEnd > 0) {

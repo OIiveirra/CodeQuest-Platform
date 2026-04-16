@@ -10,6 +10,8 @@ CREATE DATABASE IF NOT EXISTS codequest_db
 USE codequest_db;
 SET NAMES utf8mb4;
 
+-- 说明：以下表结构初始化语句均为幂等写法，可重复执行。
+
 CREATE TABLE IF NOT EXISTS sys_user (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   username VARCHAR(64) NOT NULL,
@@ -118,6 +120,8 @@ CREATE TABLE IF NOT EXISTS sys_report (
 
 START TRANSACTION;
 
+-- 说明：默认账号使用按用户名幂等更新，便于恢复后直接登录验收。
+
 INSERT INTO sys_user (username, password, role, create_time, update_time)
 VALUES ('Oliveira', MD5('123456'), 'admin', NOW(), NOW())
 ON DUPLICATE KEY UPDATE
@@ -141,6 +145,8 @@ ON DUPLICATE KEY UPDATE
 
 DELETE FROM sys_question;
 DELETE FROM t_question;
+
+-- 说明：恢复题库示例数据前会清空题库表，请勿在生产环境直接执行。
 
 INSERT INTO t_question (title, content, type, difficulty, tags, standard_answer) VALUES
 ('Java 集合：ArrayList 与 LinkedList 对比', '请说明两者底层结构、随机访问复杂度、插入删除复杂度，并给出典型使用场景。', 4, 2, 'Java,集合', 'ArrayList 基于动态数组，随机访问 O(1)，中间插入删除通常 O(n)；LinkedList 基于双向链表，随机访问 O(n)，在已定位节点附近插入删除 O(1)。读多写少优先 ArrayList。'),
@@ -170,3 +176,7 @@ ON DUPLICATE KEY UPDATE
   status = VALUES(status);
 
 COMMIT;
+
+-- 恢复后建议检查：
+-- SELECT COUNT(*) AS t_count FROM t_question;
+-- SELECT COUNT(*) AS sys_count FROM sys_question;

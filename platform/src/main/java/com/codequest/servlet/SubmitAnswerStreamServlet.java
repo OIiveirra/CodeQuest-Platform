@@ -39,8 +39,10 @@ public class SubmitAnswerStreamServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        // 提交回答主入口。
         req.setCharacterEncoding("UTF-8");
         resp.setCharacterEncoding("UTF-8");
+        // SSE 必要响应头：保持长连接并关闭代理缓冲，确保前端及时收到事件。
         resp.setContentType("text/event-stream");
         resp.setHeader("Cache-Control", "no-cache");
         resp.setHeader("Connection", "keep-alive");
@@ -79,6 +81,7 @@ public class SubmitAnswerStreamServlet extends HttpServlet {
         Question question = questionResult.getData();
         Long activeQuestionId = InterviewSessionUtils.getQuestionId(session);
         if (activeQuestionId != null && !activeQuestionId.equals(questionId)) {
+            // 题目切换时清空旧上下文。
             InterviewSessionUtils.clear(session);
         }
 
@@ -107,7 +110,7 @@ public class SubmitAnswerStreamServlet extends HttpServlet {
                 model,
                 conversationHistory,
                 token -> {
-                // 这里保留回调接口，便于后续需要将 DeepSeek 原始流同步给前端时扩展。
+                // 这里保留回调接口，便于后续扩展原始流回传。
                 },
                 interviewSessionId
         ));
@@ -128,6 +131,7 @@ public class SubmitAnswerStreamServlet extends HttpServlet {
 
         writeEvent(out, "score", GSON.toJson(new ScorePayload(aiResult.getScore(), aiResult.getCategory())));
         writeEvent(out, "feedback", GSON.toJson(aiResult.getFeedback()));
+        // 追问分支。
         if (aiResult.getScore() > 70 && aiResult.getFollowUpQuestion() != null && !aiResult.getFollowUpQuestion().trim().isEmpty()) {
             writeEvent(out, "followup", GSON.toJson(new FollowUpPayload(aiResult.getFollowUpQuestion())));
         }
@@ -136,11 +140,13 @@ public class SubmitAnswerStreamServlet extends HttpServlet {
     }
 
     private void writeError(PrintWriter out, String message) {
+        // SSE 错误事件。
         writeEvent(out, "error", GSON.toJson(message));
         out.flush();
     }
 
     private void writeEvent(PrintWriter out, String event, String dataJson) {
+        // SSE 输出格式：event + data。
         out.write("event: " + event + "\n");
         out.write("data: " + dataJson + "\n\n");
     }
@@ -205,6 +211,7 @@ public class SubmitAnswerStreamServlet extends HttpServlet {
     }
 
     private Long resolveQuestionId(HttpServletRequest req) {
+        // 题目 ID 解析。
         Long fromQuestionId = parseLong(req.getParameter("questionId"));
         if (fromQuestionId != null) {
             return fromQuestionId;

@@ -114,6 +114,7 @@ public class QuestionDAO extends BaseDAO {
             return 0;
         }
 
+        // 先在批次内按标题去重，避免同一 CSV 重复行造成无意义写入。
         List<Question> uniqueQuestions = deduplicateByTitle(questions);
         if (uniqueQuestions.isEmpty()) {
             return 0;
@@ -132,10 +133,12 @@ public class QuestionDAO extends BaseDAO {
                     String normalizedTitle = normalizeTitle(question.getTitle());
                     List<Long> existingIds = findQuestionIdsByTitle(conn, normalizedTitle);
                     if (existingIds.isEmpty()) {
+                        // 不依赖自增，统一由全局最大 ID + 1 分配，避免双表 ID 漂移。
                         long questionId = nextQuestionId++;
                         insertQuestion(conn, questionId, question);
                         upsertSysQuestion(conn, questionId, question);
                     } else {
+                        // 已存在同标题题目时，保留最小 ID，并迁移所有外键引用。
                         long keepId = existingIds.get(0);
                         mergeDuplicateQuestions(conn, keepId, existingIds);
                         updateQuestionById(conn, keepId, question);
@@ -275,6 +278,7 @@ public class QuestionDAO extends BaseDAO {
     }
 
     private void reassignQuestionReferences(Connection conn, long fromQuestionId, long toQuestionId) throws SQLException {
+        // 统一迁移所有关联表，确保去重后历史记录可追溯。
         updateQuestionReference(conn, "sys_evaluation", fromQuestionId, toQuestionId);
         updateQuestionReference(conn, "sys_favorite", fromQuestionId, toQuestionId);
         updateQuestionReference(conn, "sys_answer_draft", fromQuestionId, toQuestionId);

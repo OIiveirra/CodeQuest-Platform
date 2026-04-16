@@ -572,11 +572,13 @@
 
                     <div class="card">
                         <h2 class="section-title">题目内容</h2>
+                        <!-- 题目正文渲染区。 -->
                         <div id="questionContent" class="content-box markdown-body" data-markdown-source="true">${question.content}</div>
                     </div>
 
                     <div class="card">
                         <h2 class="section-title">请输入你的答案</h2>
+                        <!-- 提交回答入口。 -->
                         <form id="answerForm" action="${pageContext.request.contextPath}/SubmitAnswer" method="post">
                             <input type="hidden" name="questionId" value="${question.id}">
                             <div class="exam-toolbar">
@@ -589,6 +591,7 @@
                             <textarea class="answer-area" name="userAnswer" placeholder="请在这里输入你的回答..."></textarea>
                             <div class="answer-preview">
                                 <div class="answer-preview-title">我的回答（Markdown 预览）</div>
+                                <!-- 答案预览区。 -->
                                 <div id="userAnswerPreview" class="markdown-body" data-markdown-source="true">请输入回答后将自动渲染 Markdown 预览。</div>
                                 <div id="draftVersionHint" class="draft-version-hint">草稿版本：暂无</div>
                                 <div id="draftConflictPanel" class="draft-conflict-panel d-none">
@@ -602,6 +605,7 @@
                             </div>
                             <div class="reasoning-wrap">
                                 <div class="form-check form-switch">
+                                    <!-- 深度思考开关。 -->
                                     <input class="form-check-input" type="checkbox" role="switch" id="useReasoning" name="useReasoning">
                                     <label class="form-check-label fw-semibold" for="useReasoning">开启 AI 深度思考（响应较慢，建议复杂题目开启）</label>
                                 </div>
@@ -613,6 +617,7 @@
                         </form>
                         
                         <div id="streamResult" class="stream-result" aria-live="polite">
+                            <!-- 流式评测结果区。 -->
                             <div class="stream-meta">
                                 <span class="stream-badge">AI 评分：<strong id="streamScore">-</strong></span>
                                 <span class="stream-badge">分类：<strong id="streamCategory">-</strong></span>
@@ -713,6 +718,7 @@
                 return;
             }
 
+            // Markdown 渲染统一入口。
             var sourceText = text !== undefined && text !== null ? String(text) : (element.textContent || "");
             if (window.marked) {
                 element.innerHTML = marked.parse(sourceText);
@@ -876,6 +882,7 @@
                 return;
             }
 
+            // 草稿同步入口。
             setDraftSyncStatus("saving", "草稿：同步中...");
 
             var payload = new URLSearchParams();
@@ -939,6 +946,7 @@
                 return;
             }
 
+            // 草稿恢复入口。
             fetch(draftSyncUrl + "?questionId=" + encodeURIComponent(questionId), {
                 headers: { "X-Requested-With": "fetch" }
             })
@@ -1092,6 +1100,7 @@
             try {
                 data = JSON.parse(payload);
             } catch (err) {
+                // SSE 事件解析入口。
                 data = payload;
             }
             
@@ -1143,6 +1152,7 @@
             }
 
             var formData = new FormData(formElement);
+            // 提交回答入口。
             var questionId = formData.get("questionId");
             if (!questionId) {
                 var fallbackQuestionInput = document.querySelector("#answerForm input[name='questionId']");
@@ -1221,6 +1231,7 @@
 
         if (favoriteBtn) {
             favoriteBtn.addEventListener("click", function () {
+                // 收藏按钮。
                 var questionId = favoriteBtn.getAttribute("data-question-id");
                 if (!questionId) {
                     return;
@@ -1257,6 +1268,7 @@
 
         if (userAnswerNode && userAnswerPreviewNode) {
             userAnswerNode.addEventListener("input", function () {
+                // 输入时实时更新预览。
                 var value = userAnswerNode.value.trim();
                 localDraftSnapshot = userAnswerNode.value || "";
                 if (!value) {
@@ -1275,6 +1287,7 @@
                 if (!userAnswerNode) {
                     return;
                 }
+                // 恢复云端草稿。
                 userAnswerNode.value = serverDraftSnapshot || "";
                 localDraftSnapshot = userAnswerNode.value;
                 if (!localDraftSnapshot.trim()) {
@@ -1290,6 +1303,7 @@
 
         if (pushLocalBtn) {
             pushLocalBtn.addEventListener("click", function () {
+                // 本地覆盖云端。
                 saveDraftToServer(userAnswerNode ? userAnswerNode.value : "", false);
             });
         }
@@ -1298,6 +1312,7 @@
             event.preventDefault();
             hasSubmitted = true;
             stopTyping();
+            // 每次正式提交都重置展示区，防止上一次评测残留干扰当前结果。
             feedbackNode.textContent = "";
             statusNode.textContent = "正在提交并请求流式评测...";
             scoreNode.textContent = "-";
@@ -1351,6 +1366,7 @@
 
         if (endInterviewBtn) {
             endInterviewBtn.addEventListener("click", function () {
+                // 结束面试时清理会话上下文。
                 clearInterviewContext();
                 interviewDirty = false;
                 window.location.href = "${pageContext.request.contextPath}/questions";
@@ -1358,6 +1374,7 @@
         }
 
         window.addEventListener("beforeunload", function () {
+            // 离开页面前尽量完成本地与云端草稿同步，降低意外丢失风险。
             saveDraft();
             if (userAnswerNode) {
                 saveDraftToServer(userAnswerNode.value, true);

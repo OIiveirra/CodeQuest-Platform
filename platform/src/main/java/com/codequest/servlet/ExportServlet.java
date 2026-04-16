@@ -249,6 +249,7 @@ public class ExportServlet extends HttpServlet {
                 List<String> cols = splitCsvLine(line);
                 if (firstLine) {
                     firstLine = false;
+                    // 首行疑似表头时按列名映射；否则按默认列位次解析。
                     if (looksLikeHeader(cols)) {
                         columnMapping = buildColumnMapping(cols);
                         continue;
@@ -318,6 +319,7 @@ public class ExportServlet extends HttpServlet {
 
     private CsvColumnMapping buildColumnMapping(List<String> headerCols) {
         CsvColumnMapping mapping = new CsvColumnMapping();
+        // 兼容中英文和常见别名列名，减少用户手工改表头的成本。
         for (int i = 0; i < headerCols.size(); i++) {
             String normalized = normalizeHeader(headerCols.get(i));
             switch (normalized) {
@@ -365,6 +367,7 @@ public class ExportServlet extends HttpServlet {
         for (int i = 0; i < line.length(); i++) {
             char c = line.charAt(i);
             if (c == '"') {
+                // 连续双引号表示转义引号："" -> "
                 if (inQuote && i + 1 < line.length() && line.charAt(i + 1) == '"') {
                     current.append('"');
                     i++;

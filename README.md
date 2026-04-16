@@ -82,7 +82,7 @@ docker compose ps
 
 ## 6. 数据恢复
 
-### 5.1 全量恢复（新环境优先）
+### 6.1 全量恢复（新环境优先）
 
 脚本：platform/scripts/recover_codequest_db.sql
 
@@ -91,7 +91,7 @@ docker cp .\platform\scripts\recover_codequest_db.sql codequest-mysql:/tmp/recov
 docker exec codequest-mysql sh -lc "mysql -uroot -proot < /tmp/recover_codequest_db.sql"
 ```
 
-### 5.2 恢复初始 10 道示例题（用于重置）
+### 6.2 恢复初始 10 道示例题（用于重置）
 
 脚本：platform/sql/init.sql
 
@@ -120,13 +120,13 @@ docker compose down
 
 ## 8. 常见问题
 
-### 7.1 8081 访问失败
+### 8.1 8081 访问失败
 
 - 先执行 docker compose ps 确认 app 是否 Up
 - 若未启动，执行 docker compose up -d
 - 若已启动但不可访问，查看 docker compose logs --tail 200 app
 
-### 7.2 数据库恢复后无法登录
+### 8.2 数据库恢复后无法登录
 
 - 确认 SQL 是否执行成功
 - 确认使用的是本文档默认账号
@@ -136,7 +136,7 @@ docker compose down
 docker exec codequest-mysql mysql -uroot -proot -D codequest_db -e "SELECT username,role FROM sys_user;"
 ```
 
-### 7.3 AI 功能离线
+### 8.3 AI 功能离线
 
 - 检查 platform/.env 中 DeepSeek 配置是否正确
 - app 容器重建后再验证：docker compose up -d --force-recreate app

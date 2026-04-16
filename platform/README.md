@@ -39,7 +39,7 @@ docker compose up -d
 
 ```bash
 docker compose ps
-docker compose logs --tail=100 web
+docker compose logs --tail=100 app
 docker compose logs --tail=100 mysql
 ```
 
